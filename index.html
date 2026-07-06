@@ -57,6 +57,8 @@
   .mini.done{ color:#52c41a; border-color:#b7ebc6; }
   .mini.done:hover{ background:#eaffea; }
   .mini.del{ color:#f5222d; border-color:#ffccc7; }
+  .mini.remind{ color:#3370ff; border-color:#adc6ff; }
+  .mini.remind:hover{ background:#e6f0ff; }
   .mini.del:hover{ background:#fff1f0; }
 
   /* 弹窗 */
@@ -235,6 +237,7 @@ function render(){
       + '<div class="tags"><span class="tag prio '+pc+'">'+(t.重要程度||"未标")+'</span>'
       + '<span class="tag '+sc+'">'+(t.任务进度||"未开始")+'</span></div>'
       + '<div class="card-actions">'
+      + (t.任务进度==="已完成" ? "" : '<button class="mini remind" onclick="remindNow('+t.__i+')">立即催办</button>')
       + (t.任务进度==="已完成" ? "" : '<button class="mini done" onclick="markDone('+t.__i+')">完成</button>')
       + '<button class="mini del" onclick="delTodo('+t.__i+')">删除</button>'
       + '</div>';
@@ -303,6 +306,12 @@ async function delTodo(i){
   if(!confirm("确认删除该待办？此操作不可恢复。")) return;
   const r = await _post({action:"delete", index:i});
   if(r && r.ok){ load(); }
+}
+
+async function remindNow(i){
+  if(!confirm("立即向钉钉群催办这条待办？（会忽略当天防重复）")) return;
+  const r = await _post({action:"remind", index:i});
+  if(r && r.ok){ alert("已发送催办到钉钉群"); load(); }
 }
 
 function openLog(){ document.getElementById("log-mask").classList.add("show"); loadLog(); }
