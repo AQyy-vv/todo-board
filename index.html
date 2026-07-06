@@ -1,0 +1,253 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>待办看板</title>
+<style>
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"Microsoft YaHei",sans-serif; background:#f0f2f5; color:#1f2329; padding:20px; }
+  .wrap { max-width:1100px; margin:0 auto; }
+  h1 { font-size:22px; margin-bottom:4px; }
+  .desc { color:#8a919f; font-size:13px; margin-bottom:20px; }
+
+  /* 顶部统计 */
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+  .stat { background:#fff; border-radius:12px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  .stat .num { font-size:28px; font-weight:700; }
+  .stat .label { font-size:13px; color:#8a919f; margin-top:2px; }
+  .stat.total .num{color:#1f2329}
+  .stat.overdue .num{color:#f5222d}
+  .stat.soon .num{color:#fa8c16}
+  .stat.done .num{color:#52c41a}
+
+  /* 工具栏 */
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; align-items:center; }
+  .toolbar input, .toolbar select { padding:8px 12px; border:1px solid #d9dde3; border-radius:8px; font-size:13px; }
+  .toolbar input{ flex:1; min-width:160px; }
+  .btn { padding:8px 16px; border:none; border-radius:8px; background:#3370ff; color:#fff; font-size:13px; cursor:pointer; }
+  .btn:hover{ background:#2860e0; }
+
+  /* 卡片列表 */
+  .list { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:14px; }
+  .card { background:#fff; border-radius:12px; padding:16px 18px 14px; box-shadow:0 2px 8px rgba(0,0,0,.05);
+          border-left:5px solid #d9dde3; position:relative; }
+  .card.p1{ border-left-color:#f5222d; }
+  .card.p2{ border-left-color:#fa8c16; }
+  .card.p3{ border-left-color:#3370ff; }
+  .card.p4{ border-left-color:#b0b6bf; }
+  .card .title{ font-size:15px; font-weight:700; margin-bottom:10px; line-height:1.4; }
+  .row{ display:flex; align-items:center; font-size:13px; margin:5px 0; color:#4a5060; }
+  .row .k{ color:#8a919f; width:56px; flex-shrink:0; }
+  .row .v{ font-weight:600; color:#1f2329; }
+  .tags{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .tag{ font-size:12px; padding:2px 8px; border-radius:10px; }
+  .tag.prio{ color:#fff; }
+  .tag.p1{ background:#f5222d; } .tag.p2{ background:#fa8c16; }
+  .tag.p3{ background:#3370ff; } .tag.p4{ background:#b0b6bf; }
+  .tag.st-todo{ background:#f0f0f0; color:#666; }
+  .tag.st-doing{ background:#e6f0ff; color:#3370ff; }
+  .tag.st-done{ background:#eaffea; color:#52c41a; }
+  .ddl{ font-weight:700; }
+  .ddl.overdue{ color:#f5222d; } .ddl.soon{ color:#fa8c16; } .ddl.normal{ color:#4a5060; }
+  .empty{ text-align:center; color:#8a919f; padding:60px 0; }
+
+  /* 弹窗 */
+  .mask{ position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; }
+  .mask.show{ display:flex; }
+  .modal{ background:#fff; border-radius:14px; padding:26px; width:min(460px,92vw); }
+  .modal h2{ font-size:18px; margin-bottom:16px; }
+  .modal label{ display:block; font-size:13px; color:#4a5060; margin:12px 0 5px; font-weight:600; }
+  .modal input, .modal select, .modal textarea{ width:100%; padding:9px 11px; border:1px solid #d9dde3; border-radius:8px; font-size:13px; }
+  .modal .actions{ display:flex; gap:10px; margin-top:20px; }
+  .btn.ghost{ background:#f0f2f5; color:#4a5060; }
+  #msg{ display:none; margin-top:10px; font-size:13px; padding:8px; border-radius:6px; }
+  .ok{ background:#eaffea; color:#52c41a; } .err{ background:#fff1f0; color:#f5222d; }
+  @media(max-width:640px){ .stats{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📋 待办看板</h1>
+  <div class="desc">数据来源 COS todos.json ｜ 截止前 3 天由钉钉机器人自动催办</div>
+
+  <div class="stats">
+    <div class="stat total"><div class="num" id="s-total">0</div><div class="label">全部待办</div></div>
+    <div class="stat overdue"><div class="num" id="s-overdue">0</div><div class="label">已逾期</div></div>
+    <div class="stat soon"><div class="num" id="s-soon">0</div><div class="label">3天内到期</div></div>
+    <div class="stat done"><div class="num" id="s-done">0</div><div class="label">已完成</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input id="q" placeholder="搜索待办内容 / 负责人..." oninput="render()" />
+    <select id="f-prio" onchange="render()">
+      <option value="">全部优先级</option>
+      <option>重要且紧急</option><option>重要不紧急</option>
+      <option>紧急不重要</option><option>不重要不紧急</option>
+    </select>
+    <select id="f-status" onchange="render()">
+      <option value="">全部状态</option>
+      <option>未开始</option><option>进行中</option><option>已完成</option>
+    </select>
+    <button class="btn" onclick="openModal()">+ 新增待办</button>
+  </div>
+
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty" style="display:none">暂无符合条件的待办</div>
+</div>
+
+<!-- 新增弹窗 -->
+<div class="mask" id="mask">
+  <div class="modal">
+    <h2>新增待办</h2>
+    <label>待办内容 *</label><input id="m-title" />
+    <label>重要程度</label>
+    <select id="m-prio"><option>重要不紧急</option><option>重要且紧急</option><option>紧急不重要</option><option>不重要不紧急</option></select>
+    <label>负责人 *</label><input id="m-owner" />
+    <label>任务进度</label>
+    <select id="m-prog"><option>未开始</option><option>进行中</option><option>已完成</option></select>
+    <label>截止日期 *</label><input id="m-ddl" type="datetime-local" />
+    <label>备注</label><textarea id="m-remark" rows="2"></textarea>
+    <div id="msg"></div>
+    <div class="actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn" onclick="submitTodo()">提交</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ★ 数据源与提交接口（按需填写）
+const DATA_URL = "todos.json";   // 若页面与 todos.json 同目录/同桶可直接读；跨域需 COS 配 CORS
+const API_URL  = "";             // 新增待办的接口（HTTP云函数），留空则导出JSON手动上传
+
+let TODOS = [];
+
+const PRIO_CLASS = {"重要且紧急":"p1","重要不紧急":"p2","紧急不重要":"p3","不重要不紧急":"p4"};
+const ST_CLASS   = {"未开始":"st-todo","进行中":"st-doing","已完成":"st-done"};
+
+function parseDate(s){
+  if(!s) return null;
+  s = String(s).trim().replace(/\//g,"-").replace(" ","T");
+  const d = new Date(s.length<=10 ? s+"T00:00:00" : s);
+  return isNaN(d) ? null : d;
+}
+function daysLeft(s){
+  const d = parseDate(s); if(!d) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  d.setHours(0,0,0,0);
+  return Math.round((d - today)/86400000);
+}
+function ddlText(left){
+  if(left===null) return {t:"无日期", c:"normal"};
+  if(left<0) return {t:"已逾期"+Math.abs(left)+"天", c:"overdue"};
+  if(left===0) return {t:"今天到期", c:"soon"};
+  if(left<=3) return {t:"还剩"+left+"天", c:"soon"};
+  return {t:"还剩"+left+"天", c:"normal"};
+}
+
+function computeStats(){
+  let overdue=0, soon=0, done=0;
+  TODOS.forEach(t=>{
+    if(t.任务进度==="已完成"){ done++; return; }
+    const l = daysLeft(t.截止日期);
+    if(l===null) return;
+    if(l<0) overdue++;
+    else if(l<=3) soon++;
+  });
+  document.getElementById("s-total").textContent = TODOS.length;
+  document.getElementById("s-overdue").textContent = overdue;
+  document.getElementById("s-soon").textContent = soon;
+  document.getElementById("s-done").textContent = done;
+}
+
+function render(){
+  computeStats();
+  const q = document.getElementById("q").value.trim();
+  const fp = document.getElementById("f-prio").value;
+  const fs = document.getElementById("f-status").value;
+  const list = document.getElementById("list");
+  const empty = document.getElementById("empty");
+  list.innerHTML = "";
+
+  let arr = TODOS.filter(t=>{
+    if(fp && t.重要程度!==fp) return false;
+    if(fs && t.任务进度!==fs) return false;
+    if(q){
+      const hay = (t.待办内容||"")+(t.负责人||"");
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  // 未完成的、越紧急的排前面
+  arr.sort((a,b)=>{
+    const la = a.任务进度==="已完成"?9999:(daysLeft(a.截止日期)??9998);
+    const lb = b.任务进度==="已完成"?9999:(daysLeft(b.截止日期)??9998);
+    return la-lb;
+  });
+
+  if(arr.length===0){ empty.style.display="block"; return; }
+  empty.style.display="none";
+
+  arr.forEach(t=>{
+    const pc = PRIO_CLASS[t.重要程度] || "p4";
+    const sc = ST_CLASS[t.任务进度] || "st-todo";
+    const dl = ddlText(daysLeft(t.截止日期));
+    const card = document.createElement("div");
+    card.className = "card "+pc;
+    card.innerHTML =
+      '<div class="title">'+(t.待办内容||"(无标题)")+'</div>'
+      + '<div class="row"><span class="k">负责人</span><span class="v">'+(t.负责人||"未指定")+'</span></div>'
+      + '<div class="row"><span class="k">截止</span><span class="v">'+(t.截止日期||"-")+' <span class="ddl '+dl.c+'">('+dl.t+')</span></span></div>'
+      + (t.备注 ? '<div class="row"><span class="k">备注</span><span class="v" style="font-weight:400">'+t.备注+'</span></div>' : '')
+      + '<div class="tags"><span class="tag prio '+pc+'">'+(t.重要程度||"未标")+'</span>'
+      + '<span class="tag '+sc+'">'+(t.任务进度||"未开始")+'</span></div>';
+    list.appendChild(card);
+  });
+}
+
+async function load(){
+  try{
+    const res = await fetch(DATA_URL, {cache:"no-store"});
+    const data = await res.json();
+    TODOS = Array.isArray(data) ? data : (data.todos||[]);
+  }catch(e){
+    // 读不到就用演示数据，方便先看效果
+    TODOS = [
+      {待办内容:"20241225超能LQA验收",重要程度:"重要且紧急",负责人:"刘博文、罗冠伍",任务进度:"进行中",截止日期:"2026-07-08",备注:"繁中"},
+      {待办内容:"20241220代号A邮件翻译",重要程度:"重要不紧急",负责人:"李世涵",任务进度:"未开始",截止日期:"2026-07-11",备注:""},
+      {待办内容:"英语组客诉分享日会",重要程度:"紧急不重要",负责人:"宋贝文",任务进度:"已完成",截止日期:"2026-07-01",备注:"第七期"}
+    ];
+  }
+  render();
+}
+
+// 弹窗
+function openModal(){ document.getElementById("mask").classList.add("show"); }
+function closeModal(){ document.getElementById("mask").classList.remove("show"); }
+function showMsg(t,ok){ const m=document.getElementById("msg"); m.textContent=t; m.className=ok?"ok":"err"; m.style.display="block"; }
+
+async function submitTodo(){
+  const item = {
+    待办内容: val("m-title"), 重要程度: val("m-prio"), 负责人: val("m-owner"),
+    任务进度: val("m-prog"),
+    截止日期: (val("m-ddl")||"").replace("T"," "), 备注: val("m-remark")
+  };
+  if(!item.待办内容 || !item.负责人 || !item.截止日期){ showMsg("请填写带*的必填项",false); return; }
+  if(!API_URL){
+    const blob=new Blob([JSON.stringify(item,null,2)],{type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="todo_item.json"; a.click();
+    showMsg("未配置接口，已导出JSON，可手动合并上传",true); return;
+  }
+  try{
+    const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(item)});
+    if(res.ok){ showMsg("提交成功！",true); setTimeout(()=>{closeModal(); load();},800); }
+    else showMsg("提交失败："+res.status,false);
+  }catch(e){ showMsg("网络错误："+e.message,false); }
+}
+function val(id){ return document.getElementById(id).value.trim(); }
+
+load();
+</script>
+</body>
+</html>
