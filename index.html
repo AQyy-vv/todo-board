@@ -97,6 +97,7 @@
       <option>未开始</option><option>进行中</option><option>已完成</option>
     </select>
     <button class="btn" onclick="openModal()">+ 新增待办</button>
+    <button class="btn ghost" onclick="openLog()">📜 操作记录</button>
   </div>
 
   <div class="list" id="list"></div>
@@ -104,6 +105,17 @@
 </div>
 
 <!-- 新增弹窗 -->
+<div class="mask" id="log-mask">
+  <div class="modal" style="width:min(760px,94vw);">
+    <h2>📜 操作记录（审计日志）</h2>
+    <div id="log-body" style="max-height:60vh; overflow:auto; font-size:13px;">加载中…</div>
+    <div class="actions">
+      <button class="btn ghost" onclick="closeLog()">关闭</button>
+      <button class="btn" onclick="loadLog()">刷新</button>
+    </div>
+  </div>
+</div>
+
 <div class="mask" id="mask">
   <div class="modal">
     <h2>新增待办</h2>
@@ -291,6 +303,35 @@ async function delTodo(i){
   if(!confirm("确认删除该待办？此操作不可恢复。")) return;
   const r = await _post({action:"delete", index:i});
   if(r && r.ok){ load(); }
+}
+
+function openLog(){ document.getElementById("log-mask").classList.add("show"); loadLog(); }
+function closeLog(){ document.getElementById("log-mask").classList.remove("show"); }
+async function loadLog(){
+  const box=document.getElementById("log-body");
+  box.textContent="加载中…";
+  try{
+    const res=await fetch(API_BASE+"/?view=log",{cache:"no-store"});
+    const data=await res.json();
+    const logs=(data.logs||[]).slice().reverse();  // 最新在上
+    if(logs.length===0){ box.innerHTML='<div style="color:#8a919f;padding:20px 0;text-align:center;">暂无操作记录</div>'; return; }
+    const map={add:"➕ 新增",done:"✓ 完成",delete:"✕ 删除"};
+    let html='<table style="width:100%;border-collapse:collapse;">'
+      +'<tr style="text-align:left;color:#8a919f;border-bottom:1px solid #eee;">'
+      +'<th style="padding:6px;">时间</th><th style="padding:6px;">动作</th><th style="padding:6px;">内容</th></tr>';
+    logs.forEach(l=>{
+      const d=l.详情||{};
+      let content = d.removed ? (d.removed.待办内容||"") : (d.待办内容||"");
+      let extra = d.负责人?("｜负责人:"+d.负责人):"";
+      if(l.动作==="delete") extra += "（已删除）";
+      html+='<tr style="border-bottom:1px solid #f2f2f2;">'
+        +'<td style="padding:6px;white-space:nowrap;">'+(l.时间||"")+'</td>'
+        +'<td style="padding:6px;white-space:nowrap;">'+(map[l.动作]||l.动作||"")+'</td>'
+        +'<td style="padding:6px;">'+content+extra+'</td></tr>';
+    });
+    html+='</table>';
+    box.innerHTML=html;
+  }catch(e){ box.textContent="加载失败："+e.message; }
 }
 
 load();
