@@ -113,7 +113,19 @@
     <label>负责人 *</label><input id="m-owner" />
     <label>任务进度</label>
     <select id="m-prog"><option>未开始</option><option>进行中</option><option>已完成</option></select>
-    <label>截止日期 *</label><input id="m-ddl" type="datetime-local" />
+    <label>截止日期 *</label>
+    <div style="display:flex; gap:8px;">
+      <input id="m-ddl-date" type="date" style="flex:2;" />
+      <select id="m-ddl-time" style="flex:1;">
+        <option value="">不指定时间</option>
+        <option value="09:00">09:00 上午</option>
+        <option value="12:00">12:00 中午</option>
+        <option value="14:00">14:00 下午</option>
+        <option value="18:00" selected>18:00 下班前</option>
+        <option value="21:00">21:00 晚上</option>
+        <option value="23:59">23:59 当天截止</option>
+      </select>
+    </div>
     <label>备注</label><textarea id="m-remark" rows="2"></textarea>
     <div id="msg"></div>
     <div class="actions">
@@ -245,7 +257,8 @@ async function submitTodo(){
   const item = {
     待办内容: val("m-title"), 重要程度: val("m-prio"), 负责人: val("m-owner"),
     任务进度: val("m-prog"),
-    截止日期: (val("m-ddl")||"").replace("T"," "), 备注: val("m-remark")
+    截止日期: (function(){ var d=val("m-ddl-date"), tm=val("m-ddl-time"); return d ? (tm ? d+" "+tm : d) : ""; })(),
+    备注: val("m-remark")
   };
   if(!item.待办内容 || !item.负责人 || !item.截止日期){ showMsg("请填写带*的必填项",false); return; }
   if(!API_URL){
