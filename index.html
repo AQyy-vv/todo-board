@@ -51,6 +51,13 @@
   .ddl{ font-weight:700; }
   .ddl.overdue{ color:#f5222d; } .ddl.soon{ color:#fa8c16; } .ddl.normal{ color:#4a5060; }
   .empty{ text-align:center; color:#8a919f; padding:60px 0; }
+  .card-actions{ display:flex; gap:8px; margin-top:12px; }
+  .mini{ font-size:12px; padding:5px 10px; border:1px solid #d9dde3; border-radius:7px; background:#fff; cursor:pointer; color:#4a5060; }
+  .mini:hover{ background:#f5f7fa; }
+  .mini.done{ color:#52c41a; border-color:#b7ebc6; }
+  .mini.done:hover{ background:#eaffea; }
+  .mini.del{ color:#f5222d; border-color:#ffccc7; }
+  .mini.del:hover{ background:#fff1f0; }
 
   /* 弹窗 */
   .mask{ position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; }
@@ -202,7 +209,11 @@ function render(){
       + '<div class="row"><span class="k">截止</span><span class="v">'+(t.截止日期||"-")+' <span class="ddl '+dl.c+'">('+dl.t+')</span></span></div>'
       + (t.备注 ? '<div class="row"><span class="k">备注</span><span class="v" style="font-weight:400">'+t.备注+'</span></div>' : '')
       + '<div class="tags"><span class="tag prio '+pc+'">'+(t.重要程度||"未标")+'</span>'
-      + '<span class="tag '+sc+'">'+(t.任务进度||"未开始")+'</span></div>';
+      + '<span class="tag '+sc+'">'+(t.任务进度||"未开始")+'</span></div>'
+      + '<div class="card-actions">'
+      + (t.任务进度==="已完成" ? "" : '<button class="mini done" onclick="markDone('+t.__i+')">✓ 完成</button>')
+      + '<button class="mini del" onclick="delTodo('+t.__i+')">✕ 删除</button>'
+      + '</div>';
     list.appendChild(card);
   });
 }
@@ -212,6 +223,7 @@ async function load(){
     const res = await fetch(DATA_URL, {cache:"no-store"});
     const data = await res.json();
     TODOS = Array.isArray(data) ? data : (data.todos||[]);
+    TODOS.forEach((x,i)=>{ x.__i = i; });
   }catch(e){
     // 读不到就用演示数据，方便先看效果
     TODOS = [
@@ -220,6 +232,7 @@ async function load(){
       {待办内容:"英语组客诉分享日会",重要程度:"紧急不重要",负责人:"宋贝文",任务进度:"已完成",截止日期:"2026-07-01",备注:"第七期"}
     ];
   }
+  TODOS.forEach((x,i)=>{ if(x.__i===undefined) x.__i = i; });
   render();
 }
 
@@ -247,6 +260,25 @@ async function submitTodo(){
   }catch(e){ showMsg("网络错误："+e.message,false); }
 }
 function val(id){ return document.getElementById(id).value.trim(); }
+
+async function _post(body){
+  if(!API_URL){ alert("未配置接口，无法操作"); return null; }
+  const res = await fetch(API_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+  if(!res.ok){ alert("操作失败："+res.status); return null; }
+  return res.json();
+}
+
+async function markDone(i){
+  if(!confirm("确认将该待办标记为【已完成】？")) return;
+  const r = await _post({action:"done", index:i});
+  if(r && r.ok){ load(); }
+}
+
+async function delTodo(i){
+  if(!confirm("确认删除该待办？此操作不可恢复。")) return;
+  const r = await _post({action:"delete", index:i});
+  if(r && r.ok){ load(); }
+}
 
 load();
 </script>
