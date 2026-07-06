@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
@@ -118,8 +118,9 @@
 
 <script>
 // ★ 数据源与提交接口（按需填写）
-const DATA_URL = "todos.json";   // 若页面与 todos.json 同目录/同桶可直接读；跨域需 COS 配 CORS
-const API_URL  = "";             // 新增待办的接口（HTTP云函数），留空则导出JSON手动上传
+const API_BASE = "https://1447704904-lw4k5cnm0r.ap-guangzhou.tencentscf.com";  // SCF 函数URL
+  const DATA_URL = API_BASE;   // GET 同一个云函数，返回 {todos:[...]}
+const API_URL  = API_BASE;   // POST 同一个云函数，新增一条待办
 
 let TODOS = [];
 
