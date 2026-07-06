@@ -75,7 +75,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>📋 待办看板</h1>
+  <h1>待办看板</h1>
   <div class="desc">数据来源 COS todos.json ｜ 截止前 3 天由钉钉机器人自动催办</div>
 
   <div class="stats">
@@ -97,7 +97,7 @@
       <option>未开始</option><option>进行中</option><option>已完成</option>
     </select>
     <button class="btn" onclick="openModal()">+ 新增待办</button>
-    <button class="btn ghost" onclick="openLog()">📜 操作记录</button>
+    <button class="btn ghost" onclick="openLog()">操作记录</button>
   </div>
 
   <div class="list" id="list"></div>
@@ -107,7 +107,7 @@
 <!-- 新增弹窗 -->
 <div class="mask" id="log-mask">
   <div class="modal" style="width:min(760px,94vw);">
-    <h2>📜 操作记录（审计日志）</h2>
+    <h2>操作记录（审计日志）</h2>
     <div id="log-body" style="max-height:60vh; overflow:auto; font-size:13px;">加载中…</div>
     <div class="actions">
       <button class="btn ghost" onclick="closeLog()">关闭</button>
@@ -235,8 +235,8 @@ function render(){
       + '<div class="tags"><span class="tag prio '+pc+'">'+(t.重要程度||"未标")+'</span>'
       + '<span class="tag '+sc+'">'+(t.任务进度||"未开始")+'</span></div>'
       + '<div class="card-actions">'
-      + (t.任务进度==="已完成" ? "" : '<button class="mini done" onclick="markDone('+t.__i+')">✓ 完成</button>')
-      + '<button class="mini del" onclick="delTodo('+t.__i+')">✕ 删除</button>'
+      + (t.任务进度==="已完成" ? "" : '<button class="mini done" onclick="markDone('+t.__i+')">完成</button>')
+      + '<button class="mini del" onclick="delTodo('+t.__i+')">删除</button>'
       + '</div>';
     list.appendChild(card);
   });
@@ -315,7 +315,7 @@ async function loadLog(){
     const data=await res.json();
     const logs=(data.logs||[]).slice().reverse();  // 最新在上
     if(logs.length===0){ box.innerHTML='<div style="color:#8a919f;padding:20px 0;text-align:center;">暂无操作记录</div>'; return; }
-    const map={add:"➕ 新增",done:"✓ 完成",delete:"✕ 删除"};
+    const map={add:"新增",done:"完成",delete:"删除",remind:"提醒"};
     let html='<table style="width:100%;border-collapse:collapse;">'
       +'<tr style="text-align:left;color:#8a919f;border-bottom:1px solid #eee;">'
       +'<th style="padding:6px;">时间</th><th style="padding:6px;">动作</th><th style="padding:6px;">内容</th></tr>';
